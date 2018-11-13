@@ -1,0 +1,103 @@
+//KC03O8EA JOB ,'SAM PIECZ',MSGCLASS=H
+//STEP1 EXEC PGM=ASSIST
+//STEPLIB DD DSN=KC02293.ASSIST.LOADLIB,DISP=SHR
+//SYSPRINT DD SYSOUT=*
+//SYSIN DD *
+***************************************************
+* ASSIGNMENT SEVEN
+*
+* NAME: SAMUEL PIECZ
+*
+* CSECT: MAIN
+*
+* REGISTER USAGE: Not enough time to specify.
+*
+***************************************************
+*
+***< MAIN >
+*
+MAIN     CSECT
+*
+***< ENTRY LINKAGE>
+*
+         STM   14,12,12(13)            Another situation where I think
+         LR    12,15                   you should understand that
+         USING MAIN,12                 I already know what this does.
+         LA    14,MAINSAVE             The linkage code allows you to
+         ST    14,8(0,13)              break code down intosubroutines
+         ST    13,4(0,14)
+         LR    13,14
+*
+***< START LOGIC >
+*
+         LA    1,BPARMS                Load params into R1
+         L     15,=V(BUILD)            Load subroutine into R15
+         BALR  14,15                   Branch to build subroutine
+*
+***< EXIT LINKAGE >
+*
+         L     13,4(0,13)              Exit linkage code. Never
+         LM    14,12,12(13)            changes. Switches control
+         BR    14                      back to main for more subrtnes.
+*
+***< MAIN LTORGS>
+*
+         LTORG
+         ORG MAIN+((*-MAIN+31)/32)*32
+TABLE    DS    32CL38                  Table for storage
+EOT      DS    F                       End of table
+*
+***< RESTORE REGISTERS >
+*
+MAINSAVE DS    18F                     Restore registers.
+***************************************************
+*
+* CSECT: BUILD
+*
+* REGISTER USAGE: Not enough time to specify.
+*
+***************************************************
+*
+***< BUILD SUBROUTINE >
+*
+BUILD    CSECT
+*
+***< ENTRY LINKAGE>
+*
+         STM   14,12,12(13)            Yes, fascinating, here we
+         LR    12,15                   see a wild subroutine entry
+         USING BUILD,12                linkage in it's natural
+         USING BLABL,2                 habitat. It is even using
+         LA    14,BSAVE                the dsect of build labels
+         ST    13,4(0,14)              defined before main. This
+         ST    14,8(0,13)              will allows me to reference
+         LR    13,14                   things more easily. No offsets.
+*
+***< START LOGIC>
+*
+         LM    2,4,0(1)                Unpack BPARMS into R2-R4
+LOOP1    XREAD 0(4),80                 Read in from buffer
+         BL    ENDL1                   If no data stop loop
+         LA    1,0(0,4)                Load buffer into R1
+         LA    2,32(0,2)               Increment the table pointer
+         B     LOOP1                   Unconditionally branch to top
+ENDL1    ST    2,0(0,3)                Store data in end of table
+*
+***< EXIT LINKAGE >
+*
+         L     13,4(0,13)              The elusive exit linkage.
+         LM    14,12,12(13)            Do not disturb it as it is
+         BR    14                      sleeping. Anyone read these?
+*
+***< LTORG FOR BUILD>
+*
+         LTORG                         Yay LTORGS. Every external
+USEME    DS    CL7' '                  subroutine needs one. Great
+*                                      for defining variables. Woo.
+***< RESTORE REGISTERS>
+*
+BSAVE    DS    18F                     Restore those registers.
+         END   MAIN
+/*
+//FT05F001  DD  DSN=KC02314.SPRING16.CSCI360.HW7DATA,DISP=SHR
+//
