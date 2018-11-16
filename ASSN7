@@ -43,9 +43,12 @@ MAIN     CSECT
 ***< MAIN LTORGS>
 *
          LTORG
-         ORG MAIN+((*-MAIN+31)/32)*32
 TABLE    DS    32CL38                  Table for storage
 EOT      DS    F                       End of table
+BUFFER   DS    80C                     Buffer for input data
+BPARMS   DC    A(TABLE)                Address for table
+         DC    A(EOT)                  Address for end of table
+         DC    A(BUFFER)               Address for buffer
 *
 ***< RESTORE REGISTERS >
 *
@@ -67,7 +70,7 @@ BUILD    CSECT
          STM   14,12,12(13)            Yes, fascinating, here we
          LR    12,15                   see a wild subroutine entry
          USING BUILD,12                linkage in it's natural
-         USING BLABL,2                 habitat. It is even using
+*                                      habitat. It is even using
          LA    14,BSAVE                the dsect of build labels
          ST    13,4(0,14)              defined before main. This
          ST    14,8(0,13)              will allows me to reference
@@ -91,9 +94,8 @@ ENDL1    ST    2,0(0,3)                Store data in end of table
 *
 ***< LTORG FOR BUILD>
 *
-         LTORG                         Yay LTORGS. Every external
-USEME    DS    CL7' '                  subroutine needs one. Great
-*                                      for defining variables. Woo.
+         LTORG                         Define variables with LTORG
+*
 ***< RESTORE REGISTERS>
 *
 BSAVE    DS    18F                     Restore those registers.
