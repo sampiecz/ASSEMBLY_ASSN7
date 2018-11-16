@@ -52,12 +52,13 @@ MAIN     CSECT
 *
          LTORG
          DS    0D
-TABLE    DS    120CL25                  Table for storage
+TABLE    DS    120CL25                 Table for storage
 EOT      DS    F                       End of table
 BUFFER   DS    80C                     Buffer for input data
 BPARMS   DC    A(TABLE)                Address for table
          DC    A(EOT)                  Address for end of table
-         DC    A(BUFFER)               Address for buffer
+         DC    A(BUFFER)               Address for BUFFER
+
 *
 ***< RESTORE REGISTERS >
 *
@@ -97,14 +98,14 @@ BUILD    CSECT
 ***< Attempt at creating digit finding table >
 *
 DIGITAB  DC    256X'00'                Sets up search table 256
-         ORG   BLTAB+X'F0'             States what value to look for
+         ORG   DIGITAB+X'F0'             States what value to look for
          DC    10X'01'                 No clue
          ORG                           No clue
 *
 ***< Attempt at creating space finding table >
 *
 SPACETAB DC    256X'00'
-         ORG   DIGITS+X'40'
+         ORG   DIGITAB+X'40'
          DC    X'01'
          ORG
 *
@@ -120,30 +121,26 @@ THEPACK  PACK  TEMP(8),0(0,5)
 *
 ***< NOTE: Can't use R1 or R2 because of TRT >
 *
-         LM    3,5,0(1)                Unpack BPARMS into R3-R5
-LOOP1    XREAD 0(4),80                 Read in from buffer
-         TRT   0(4)(80),BLTAB          Use the search table? No clue
-* So now it should set the condition code. If we found a space, R1
-* will contain the address of the first blank found in buffer aka 0(4).
-* The rightmost bytes of R2 will contain the corresponding value from
-* the table (x'FF' in this case) and the CC will be set to 1
-* or CC will set to 2 if blank is at the very end of the buffer?
-* if TRT didn't find any blanks CC will be 0
-         BL    ENDL1                   If no data stop loop
-         LA    6,0(0,4)                Load buffer into R1
-* Would need to check if space, if space continue else load This
-* data in using MVC
-         MVC   NAME(13),0(1)            Load 13 characters into NAME
-* Would need to check here to see if it's a space over and over
-* again. If it's not then load in the SYMBOL
-         MVC   SYMBOL(3),0(1)          Load 3 bytes in for SYMBOL
-* Once again check if space here then load in NUMBER
-         MVC   NUMBER(2),0(1)          Load 2 numbers into NUMBER
-* Need I say it again? Find out how to get these spaces
-         MVC   DATE(7),0(1)            Load date into DATE
-         LA    4,120(0,2)              Increment the table pointer
-         B     LOOP1                   Unconditionally branch to top
-ENDL1    ST    4,0(0,3)                Store data in end of table
+*        LM    8,10,0(1)                Unpack BPARMS into R8-R9
+LOOP1    XREAD 10,80               Read a line
+         BC    B'0100',END1            End-of-file?  End the outer loop
+         LA    1,10                1 = address of BUFFER
+LOOP2    TRT   0(80,1),DIGITAB         Search for a digit
+         BC    B'1000',END2            No numbers?  End the inner loop
+         LR    4,1                     4 = address of first digit
+         TRT   0(80,1),SPACETAB        Search for a space
+         LR    5,1                     5 = address of next space
+         SR    5,4                     Now 5 = actual length
+         BCTR  5,0                     Adjust the length
+         EX    5,THEPACK               Pack the number into TEMP
+         CVB   6,TEMP                  Now 6 = the number (binary)
+         ST    6,0(0,8)                Store it in the table
+         LA    8,4(0,8)                Advance table pointer
+         BC    B'1111',LOOP2           Repeat the inner loop
+END2     DS    0H
+         BC    B'1111',LOOP1           Repeat the outer loop
+END1     DS    0H
+         ST    8,8                     Store end-of-table address
 *
 ***< EXIT LINKAGE >
 *
@@ -162,4 +159,164 @@ BSAVE    DS    18F                     Restore those registers.
 /*
 //FT05F001  DD  DSN=KC02314.SPRING16.CSCI360.HW7DATA,DISP=SHR
 //
+//KC03O8EA JOB ,'SAM PIECZ',MSGCLASS=H
+//STEP1 EXEC PGM=ASSIST
+//STEPLIB DD DSN=KC02293.ASSIST.LOADLIB,DISP=SHR
+//SYSPRINT DD SYSOUT=*
+//SYSIN DD *
+***************************************************
+* ASSIGNMENT SEVEN
+*
+* NAME: SAMUEL PIECZ
+*
+* CSECT: MAIN
+*
+* REGISTER USAGE: Not enough time to specify.
+*
+***************************************************
+*
+***< BUILD DSECT >
+*
+BLABL    DSECT                         Name to refer to DSECT
+DATE     DS    7C                      Date is 7 characters
+NAME     DS    13C                     Name is 13 characters
+SYMBOL   DS    3C                      Symbol is 3 characters
+NUMBER   DS    PL2                     Number is 2 packed length
+*
+***< MAIN >
+*
+MAIN     CSECT
+*
+***< ENTRY LINKAGE>
+*
+         STM   14,12,12(13)            Another situation where I think
+         LR    12,15                   you should understand that
+         USING MAIN,12                 I already know what this does.
+         LA    14,MAINSAVE             The linkage code allows you to
+         ST    14,8(0,13)              break code down intosubroutines
+         ST    13,4(0,14)
+         LR    13,14
+*
+***< START LOGIC >
+*
+         LA    1,BPARMS                Load params into R1
+         L     15,=V(BUILD)            Load subroutine into R15
+         BALR  14,15                   Branch to build subroutine
+*
+***< EXIT LINKAGE >
+*
+         L     13,4(0,13)              Exit linkage code. Never
+         LM    14,12,12(13)            changes. Switches control
+         BR    14                      back to main for more subrtnes.
+*
+***< MAIN LTORGS>
+*
+         LTORG
+         DS    0D
+TABLE    DS    120CL25                 Table for storage
+EOT      DS    F                       End of table
+BUFFER   DS    80C                     Buffer for input data
+BPARMS   DC    A(TABLE)                Address for table
+         DC    A(EOT)                  Address for end of table
+         DC    A(BUFFER)               Address for BUFFER
 
+*
+***< RESTORE REGISTERS >
+*
+MAINSAVE DS    18F                     Restore registers.
+***************************************************
+*
+* CSECT: BUILD
+*
+* REGISTER USAGE: Not enough time to specify.
+*
+***************************************************
+*
+***< BUILD SUBROUTINE >
+*
+BUILD    CSECT
+*
+***< ENTRY LINKAGE>
+*
+         STM   14,12,12(13)            Yes, fascinating, here we
+         LR    12,15                   see a wild subroutine entry
+         USING BUILD,12                linkage in it's natural
+         USING BLABL,2                 habitat. It is even using
+         LA    14,BSAVE                the dsect of build labels
+         ST    13,4(0,14)              defined before main. This
+         ST    14,8(0,13)              will allows me to reference
+         LR    13,14                   things more easily. No offsets.
+*
+***< START LOGIC>
+*
+* < Will need to be able to use TRT and EX to located information
+* <  on each line
+* < Need to be able to search for blanks and non blank characters
+* < Will need TR to make use of upper and lower case consistent
+* < Any letters in date should be lowercase
+* < The name and symbol first letter should be upper, rest lower
+*
+***< Attempt at creating digit finding table >
+*
+DIGITAB  DC    256X'00'                Sets up search table 256
+         ORG   DIGITAB+X'F0'             States what value to look for
+         DC    10X'01'                 No clue
+         ORG                           No clue
+*
+***< Attempt at creating space finding table >
+*
+SPACETAB DC    256X'00'
+         ORG   DIGITAB+X'40'
+         DC    X'01'
+         ORG
+*
+***< Temp var is used with CVB >
+*
+TEMP     DS    D
+*
+***< This gets executed by EX >
+*
+THEPACK  PACK  TEMP(8),0(0,5)
+*
+***< Now that search table is setup loop through data >
+*
+***< NOTE: Can't use R1 or R2 because of TRT >
+*
+*        LM    8,10,0(1)                Unpack BPARMS into R8-R9
+LOOP1    XREAD 10,80               Read a line
+         BC    B'0100',END1            End-of-file?  End the outer loop
+         LA    1,10                1 = address of BUFFER
+LOOP2    TRT   0(80,1),DIGITAB         Search for a digit
+         BC    B'1000',END2            No numbers?  End the inner loop
+         LR    4,1                     4 = address of first digit
+         TRT   0(80,1),SPACETAB        Search for a space
+         LR    5,1                     5 = address of next space
+         SR    5,4                     Now 5 = actual length
+         BCTR  5,0                     Adjust the length
+         EX    5,THEPACK               Pack the number into TEMP
+         CVB   6,TEMP                  Now 6 = the number (binary)
+         ST    6,0(0,8)                Store it in the table
+         LA    8,4(0,8)                Advance table pointer
+         BC    B'1111',LOOP2           Repeat the inner loop
+END2     DS    0H
+         BC    B'1111',LOOP1           Repeat the outer loop
+END1     DS    0H
+         ST    8,8                     Store end-of-table address
+*
+***< EXIT LINKAGE >
+*
+         L     13,4(0,13)              The elusive exit linkage.
+         LM    14,12,12(13)            Do not disturb it as it is
+         BR    14                      sleeping. Anyone read these?
+*
+***< LTORG FOR BUILD>
+*
+         LTORG                         Define variables with LTORG
+*
+***< RESTORE REGISTERS>
+*
+BSAVE    DS    18F                     Restore those registers.
+         END   MAIN
+/*
+//FT05F001  DD  DSN=KC02314.SPRING16.CSCI360.HW7DATA,DISP=SHR
+//
