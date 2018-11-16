@@ -14,6 +14,14 @@
 *
 ***************************************************
 *
+***< BUILD DSECT >
+*
+BLABL    DSECT                         Name to refer to DSECT
+DATE     DS    7C                      Date is 7 characters
+NAME     DS    13C                     Name is 13 characters
+SYMBOL   DS    3C                      Symbol is 3 characters
+NUMBER   DS    PL2                     Number is 2 packed length
+*
 ***< MAIN >
 *
 MAIN     CSECT
@@ -43,7 +51,8 @@ MAIN     CSECT
 ***< MAIN LTORGS>
 *
          LTORG
-TABLE    DS    32CL38                  Table for storage
+         DS    0D
+TABLE    DS    120CL25                  Table for storage
 EOT      DS    F                       End of table
 BUFFER   DS    80C                     Buffer for input data
 BPARMS   DC    A(TABLE)                Address for table
@@ -70,7 +79,7 @@ BUILD    CSECT
          STM   14,12,12(13)            Yes, fascinating, here we
          LR    12,15                   see a wild subroutine entry
          USING BUILD,12                linkage in it's natural
-*                                      habitat. It is even using
+         USING BLABL,2                 habitat. It is even using
          LA    14,BSAVE                the dsect of build labels
          ST    13,4(0,14)              defined before main. This
          ST    14,8(0,13)              will allows me to reference
@@ -78,13 +87,63 @@ BUILD    CSECT
 *
 ***< START LOGIC>
 *
-         LM    2,4,0(1)                Unpack BPARMS into R2-R4
+* < Will need to be able to use TRT and EX to located information
+* <  on each line
+* < Need to be able to search for blanks and non blank characters
+* < Will need TR to make use of upper and lower case consistent
+* < Any letters in date should be lowercase
+* < The name and symbol first letter should be upper, rest lower
+*
+***< Attempt at creating digit finding table >
+*
+DIGITAB  DC    256X'00'                Sets up search table 256
+         ORG   BLTAB+X'F0'             States what value to look for
+         DC    10X'01'                 No clue
+         ORG                           No clue
+*
+***< Attempt at creating space finding table >
+*
+SPACETAB DC    256X'00'
+         ORG   DIGITS+X'40'
+         DC    X'01'
+         ORG
+*
+***< Temp var is used with CVB >
+*
+TEMP     DS    D
+*
+***< This gets executed by EX >
+*
+THEPACK  PACK  TEMP(8),0(0,5)
+*
+***< Now that search table is setup loop through data >
+*
+***< NOTE: Can't use R1 or R2 because of TRT >
+*
+         LM    3,5,0(1)                Unpack BPARMS into R3-R5
 LOOP1    XREAD 0(4),80                 Read in from buffer
+         TRT   0(4)(80),BLTAB          Use the search table? No clue
+* So now it should set the condition code. If we found a space, R1
+* will contain the address of the first blank found in buffer aka 0(4).
+* The rightmost bytes of R2 will contain the corresponding value from
+* the table (x'FF' in this case) and the CC will be set to 1
+* or CC will set to 2 if blank is at the very end of the buffer?
+* if TRT didn't find any blanks CC will be 0
          BL    ENDL1                   If no data stop loop
-         LA    1,0(0,4)                Load buffer into R1
-         LA    2,32(0,2)               Increment the table pointer
+         LA    6,0(0,4)                Load buffer into R1
+* Would need to check if space, if space continue else load This
+* data in using MVC
+         MVC   NAME(13),0(1)            Load 13 characters into NAME
+* Would need to check here to see if it's a space over and over
+* again. If it's not then load in the SYMBOL
+         MVC   SYMBOL(3),0(1)          Load 3 bytes in for SYMBOL
+* Once again check if space here then load in NUMBER
+         MVC   NUMBER(2),0(1)          Load 2 numbers into NUMBER
+* Need I say it again? Find out how to get these spaces
+         MVC   DATE(7),0(1)            Load date into DATE
+         LA    4,120(0,2)              Increment the table pointer
          B     LOOP1                   Unconditionally branch to top
-ENDL1    ST    2,0(0,3)                Store data in end of table
+ENDL1    ST    4,0(0,3)                Store data in end of table
 *
 ***< EXIT LINKAGE >
 *
@@ -103,3 +162,4 @@ BSAVE    DS    18F                     Restore those registers.
 /*
 //FT05F001  DD  DSN=KC02314.SPRING16.CSCI360.HW7DATA,DISP=SHR
 //
+
