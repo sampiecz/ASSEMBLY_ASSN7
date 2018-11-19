@@ -80,7 +80,6 @@ TABLE    DC    3000C' '                Table for storage
 EOT      DS    F                       End of table
 BPARMS   DC    A(TABLE)                Address for table
          DC    A(EOT)                  Address for end of table
-         DC    A(BUFFER)               Address for BUFFER
 PPARMS   DC    A(TABLE)                Address for TABLE
          DC    A(EOT)                  Address for EOT
          DC    A(HEAD1)                Address for location of header
@@ -141,14 +140,14 @@ BUILD    CSECT
          USING BLABL,7                 Allow use of BUILD DSECT
 POPULATE DS    0H                      Start data population loop
          XREAD BUFFER,80               Read in data
-         BC    B'0100',FEND            If no more GOTO end of find
+         BL    FEND                    If no more GOTO end of find
          LA    1,BUFFER                Load BUFFER into R1
 FIND     DS    0H                      Start find loop
 *
 ***< Get Name >
 *
          TRT   0(80,1),FINDTAB         Find next space
-         BZ    FEND                    If not GOTO find end
+         BZ    POPULATE                If not GOTO find end
          LR    3,1                     Save space before element
          TRT   0(80,1),ASPACE          Search for the next blank space
          LR    4,1                     Save space after element
@@ -161,7 +160,7 @@ FIND     DS    0H                      Start find loop
 ***< Get Symbol >
 *
          TRT   0(80,1),FINDTAB         Find next space
-         BZ    FEND                    If not GOTO find end
+         BZ    POPULATE                If not GOTO find end
          LR    3,1                     Save space before element
          TRT   0(80,1),ASPACE          Search for the next blank space
          LR    4,1                     Save space after element
@@ -174,7 +173,7 @@ FIND     DS    0H                      Start find loop
 ***< Get Number>
 *
          TRT   0(80,1),FINDTAB         Find next space
-         BZ    FEND                    If not GOTO find end
+         BZ    POPULATE                If not GOTO find end
          LR    3,1                     Save space before element
          TRT   0(80,1),ASPACE          Search for the next blank space
          LR    4,1                     Save space after element
@@ -185,7 +184,7 @@ FIND     DS    0H                      Start find loop
 ***< Get Date >
 *
          TRT   0(80,1),FINDTAB         Find next space
-         BZ    FEND                    If not GOTO find end
+         BZ    POPULATE                If not GOTO find end
          LR    3,1                     Save space before element
          TRT   0(80,1),ASPACE          Search for the next blank space
          LR    4,1                     Save space after element
@@ -196,6 +195,7 @@ FIND     DS    0H                      Start find loop
 *
 ***< End of loop >
 *
+         LA    7,25(0,7)               Increment table address
          BC    B'1111',POPULATE        End of loop grab more data
 FEND     DS    0H
          ST    7,0(0,8)                Store end of table
@@ -215,13 +215,6 @@ XNAME    MVC   NAME(0),0(3)            Label to MVC NAME for EX
 XSYMBOL  MVC   SYMBOL(0),0(3)          Label to MVC SYMBOL for EX
 XNUMBER  PACK  NUMBER(2),0(0,3)        Label to MVC NUMBER for EX
 XDATE    MVC   DATE(0),0(3)            Label to MVC DATE for EX
-*
-***< Attempt at creating digit finding table >
-*
-DIGITAB  DC    256X'00'                Sets up search table 256
-         ORG   DIGITAB+X'F0'           States what value to look for
-         DC    10X'01'                 Fills table with 01
-         ORG
 *
 ***< Search table for numeric and alphanumeric characters >
 *
@@ -353,7 +346,9 @@ PRINT    CSECT
          L     6,=F'0'                 Load zero into R6
 LOOP     DS    0H                      Loop for iterating over table
          C     7,0(0,8)                See if we are at EOT
-         BC    B'1000',HEADOUT         If EOT print out header
+         BE    PEND                   If EOT print out header
+         C     6,=F'0'                 Compare counter
+         BE    HEADOUT
 SETUP    DS    0H                      Otherwise setup our print vars
          MVC   PNAME(13),NAME          Move bytes to PNAME for print
          MVC   PSYMBOL(2),SYMBOL       Move bytes to PSYMBOL for print
@@ -374,7 +369,7 @@ HEADOUT  L     6,=F'50'                Reset item counter to fifty
 *
 ***< EXIT LINKAGE >
 *
-         L     13,4(0,13)              The elusive exit linkage.
+PEND     L     13,4(0,13)              The elusive exit linkage.
          LM    14,12,12(13)            Do not disturb it as it is
          BR    14                      sleeping. Anyone read these?
 *
@@ -466,7 +461,7 @@ BUBBLE   DS    0H                      BUBBLE and change position of E
          L     13,4(0,13)              The elusive exit linkage.
          LM    14,12,12(13)            Do not disturb it as it is
          BR    14                      sleeping. Anyone read these?
-*
+*S
 ***< LTORG FOR SORT >
 *
          LTORG                         Define variables with LTORG
@@ -480,5 +475,5 @@ SSAVE    DS    18F                     Restore those registers.
 *
          END   MAIN
 /*
-//FT05F001  DD  DSN=KC02314.SPRING16.CSCI360.HW7DATA,DISP=SHR
+//FT05F001  DD  DSN=KC02314.AUTUMN18.CSCI360.HW7DATA,DISP=SHR
 //
