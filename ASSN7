@@ -90,8 +90,8 @@ SPARMS   DC    A(TABLE)                Address for TABLE
          DC    A(EOT)                  Address for EOT
 HEAD1    DC    CL50'1                   Chronological List of Elements'
          DC    CL19'           Page    '
-HEAD2    DC    CL50'1                        Elements Sorted by Name  '
-         DC    CL19' Page '
+HEAD2    DC    CL50'1                 Elements Sorted by Atomic Number'
+         DC    CL19'          Page '
 *
 ***< RESTORE REGISTERS >
 *
@@ -437,8 +437,8 @@ SORT     CSECT
          A     8,=F'-50'
 FOREACH  DS    0H                      FOREACH item in the table
          CR    2,8                     Compare R2 and R8
-         BC    B'1000',SSAVE           If equal go to save end
-         BC    B'0010',SSAVE           If greater than go to save end
+         BC    B'1000',SEND            If equal go to save end
+         BC    B'0010',SEND            If greater than go to save end
          LA    3,50(0,2)               Otherwise load R2 & R3 with 50D
          LA    4,75(0,2)               and load R4 with R2 75D
 IF       DS    0H                      IF lower > upper
@@ -458,7 +458,7 @@ BUBBLE   DS    0H                      BUBBLE and change position of E
 *
 ***< EXIT LINKAGE >
 *
-         L     13,4(0,13)              The elusive exit linkage.
+SEND     L     13,4(0,13)              The elusive exit linkage.
          LM    14,12,12(13)            Do not disturb it as it is
          BR    14                      sleeping. Anyone read these?
 *S
